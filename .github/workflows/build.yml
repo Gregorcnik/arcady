@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'          # run on version tags
+      - 'v*'           # run on version tags like v1.2.3
 
 jobs:
   build-matrix:
@@ -28,17 +28,33 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --noconsole --name arcady main.py
+          pyinstaller --noconsole --onedir --name arcady main.py   # dist/arcady or dist/arcady.app
 
-      - name: Package build folder
-        shell: bash            # force Bash even on windows‑latest
+      - name: Add .app to release folder
+        if: ${{ runner.os == 'macOS' }}
+        shell: bash
         run: |
-          os_name="${{ matrix.os }}"
-          os_clean="${os_name%-latest}"      # strip suffix in Bash
+          set -e
           mkdir -p release
-          cp -r dist/arcady* "release/arcady-$os_clean"
-          cd release
-          zip -r "arcady-$os_clean.zip" "arcady-$os_clean"
+          (cd dist && zip -r -y ../release/arcady-macos.zip arcady.app)
+
+      - name: Add folder with the executable to release folder
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $Release = 'release'
+          New-Item -ItemType Directory -Force -Path $Release | Out-Null
+          Compress-Archive -Path 'dist/arcady' `
+                          -DestinationPath "$Release/arcady-windows.zip" `
+                          -CompressionLevel Optimal -Force      # includes the arcady/ dir
+
+      - name: Add folder with the executable to release folder
+        if: ${{ runner.os == 'Linux' }}
+        shell: bash
+        run: |
+          set -e
+          mkdir -p release
+          (cd dist && zip -r -y ../release/arcady-linux.zip arcady)
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -50,7 +66,7 @@ jobs:
     needs: build-matrix
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
