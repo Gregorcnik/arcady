@@ -28,17 +28,21 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --onefile main.py
+        pyinstaller --noconsole --onefile main.py
+    
+    - name: Make binary executable (macOS/Linux)
+      if: runner.os != 'Windows'
+      run: chmod +x dist/main
 
     - name: Rename binary
       run: |
         mkdir -p release
-        cp dist/main* release/myapp-${{ matrix.os }}
+        cp dist/main* release/arcady-${{ matrix.os }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: myapp-${{ matrix.os }}
+        name: arcady-${{ matrix.os }}
         path: release/*
 
   release:
